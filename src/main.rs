@@ -1,12 +1,8 @@
-use std::{fmt::format, ptr::null};
-
-use eframe::{egui};
-
-
 fn main() {
-    let native_options = eframe::NativeOptions::default();
-    eframe::run_native("Modulation Measurer", native_options, Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))));
+    signal_frequency(30.0, ChartUnit::Ns);
 }
+
+
 #[derive(Default, Debug, PartialEq, Clone, Copy)]
 pub enum ChartUnit {
     #[default]
@@ -15,74 +11,27 @@ pub enum ChartUnit {
     Ms,
 }
 
-#[derive(Default)]
-struct MyEguiApp {
-    graphxsize: u64,
-    unit: ChartUnit,
-    posstart: f64,
-    posend: u64,
-    range: u64,
-    selected: ChartUnit,
-}
 
-impl MyEguiApp {
+fn signal_frequency(range: f64, unit: ChartUnit) -> String {
+    let period:f64 = match unit {
+        ChartUnit::Ns => range * 1e-9,
+        ChartUnit::Us => range * 1e-6,
+        ChartUnit::Ms => range * 1e-3,
+    };
 
-    fn signal_frequency(&mut self, period: f64) -> String {
-        println!("{}", period);
-        let hz:f64 = match self.unit{
-            ChartUnit::Ns => period * 1e-9,
-            ChartUnit::Us => period * 1e-6,
-            ChartUnit::Ms => period * 1e-3,
-        };
+    let period = 1.0 / period;
 
-        println!("{}", hz);
-        let hz = 1.0 / hz;
-
-        println!("{}", hz);
-        let log10 = hz.log10();
-        let exp3 = (log10 / 3.0f64).floor() * 3.0f64;
-        let prefix = match exp3 {
-             0.0 => "Hz",
-             3.0 => "kHz",
-             6.0 => "MHz",
-             9.0 => "THz",
-             _ => "Hz, wildcard",
-        };
-        let factor = 10f64.powf(exp3);
-        let value = hz as f64 / factor as f64;
-        println!("log10: {} \n exp3: {} \n prefix: {} \n factor: {} \n value: {}", log10, exp3, prefix, factor, value);
-        format!("{value:.3} {prefix}")
-    }
-
-
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        Self::default()
-    }
-}
-
-impl eframe::App for MyEguiApp {
-    
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Hello World!");
-            ui.label("Chart units");
-            egui::ComboBox::from_label("Select one!")
-                .selected_text(format!("{:?}", self.selected))
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.selected, ChartUnit::Ms, "Ms");
-
-                    ui.selectable_value(&mut self.selected, ChartUnit::Us, "Us");
-                    
-                    ui.selectable_value(&mut self.selected, ChartUnit::Ns, "Ns");
-                });
-            
-            ui.horizontal(|ui| {
-                ui.label("Graph Size horizontal");
-                ui.add(egui::DragValue::new(&mut self.posstart).range(0f64..=30000.0));
-                if ui.button("Print").clicked() {
-                    println!("{}", self.signal_frequency(self.posstart))
-                }
-            });
-        });
-    }
+    let log10 = period.log10();
+    let exp3 = (log10 / 3.0f64).floor() * 3.0f64; 
+    let prefix = match exp3 {
+            0.0 => "Hz",
+            3.0 => "kHz",
+            6.0 => "MHz",
+            9.0 => "THz",
+            _ => "Fail",
+    };
+    let factor = 10f64.powf(exp3);
+    let value = period as f64 / factor as f64;
+    // println!("log10: {} \n exp3: {} \n prefix: {} \n factor: {} \n value: {}", log10, exp3, prefix, factor, value);
+    format!("{value:.3} {prefix}")
 }
