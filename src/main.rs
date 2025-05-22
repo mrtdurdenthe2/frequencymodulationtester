@@ -1,15 +1,50 @@
-fn main() {
-    signal_frequency(30.0, ChartUnit::Ns);
+use iced::widget::{
+    center, column, combo_box, scrollable, text, vertical_space,
+};
+use iced::{Center, Element, Fill};
+
+pub fn main() -> iced::Result {
+    iced::run("Modulation measurer", TestApp::update, TestApp::view)
 }
 
 
-#[derive(Default, Debug, PartialEq, Clone, Copy)]
+#[derive(Debug)]
+struct TestApp {
+    units: combo_box::State<ChartUnit>,
+    selected_unit: Option<ChartUnit>,
+    text: String,
+}
+
+impl TestApp {
+    fn new() -> Self {
+        todo!()
+    }
+
+    fn update(&mut self, message: TestApp) {
+        todo!()
+    }
+
+    fn view(&self) -> Element<TestApp> {
+        todo!()
+    }
+}
+
+impl Default for TestApp {
+    fn default() -> Self {
+        TestApp::new()
+    }
+}
+
+
+#[derive(Default, Debug, Clone)]
 pub enum ChartUnit {
     #[default]
     Ns, 
     Us,
     Ms,
 }
+
+
 
 
 fn signal_frequency(range: f64, unit: ChartUnit) -> String {
