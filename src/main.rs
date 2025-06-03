@@ -1,72 +1,115 @@
-use iced::widget::{
-    center, column, combo_box, scrollable, text, vertical_space,
-};
-use iced::{Center, Element, Fill};
+use iced::{Sandbox, Settings, Element};
+use iced::widget::{column, text, text_input, combo_box};
 
 pub fn main() -> iced::Result {
-    iced::run("Modulation measurer", TestApp::update, TestApp::view)
+    TestApp::run(Settings::default())
 }
 
-
-#[derive(Debug)]
+#[derive(Default)]
 struct TestApp {
-    units: combo_box::State<ChartUnit>,
-    selected_unit: Option<ChartUnit>,
-    text: String,
+    unit_state: combo_box::State<ChartUnit>,
+    selected_unit: ChartUnit,
+    range_state: text_input::State,
+    range: String,
+    output: String,
 }
 
-impl TestApp {
-    fn new() -> Self {
-        todo!()
-    }
-
-    fn update(&mut self, message: TestApp) {
-        todo!()
-    }
-
-    fn view(&self) -> Element<TestApp> {
-        todo!()
-    }
+#[derive(Debug, Clone)]
+enum Message {
+    UnitSelected(ChartUnit),
+    RangeChanged(String),
 }
 
-impl Default for TestApp {
-    fn default() -> Self {
-        TestApp::new()
-    }
-}
-
-
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChartUnit {
     #[default]
-    Ns, 
+    Ns,
     Us,
     Ms,
 }
 
+impl ChartUnit {
+    const ALL: [ChartUnit; 3] = [ChartUnit::Ns, ChartUnit::Us, ChartUnit::Ms];
+}
 
+impl std::fmt::Display for ChartUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ChartUnit::Ns => write!(f, "ns"),
+            ChartUnit::Us => write!(f, "\u03bcs"),
+            ChartUnit::Ms => write!(f, "ms"),
+        }
+    }
+}
 
+impl Sandbox for TestApp {
+    type Message = Message;
+
+    fn new() -> Self {
+        Self {
+            unit_state: combo_box::State::new(ChartUnit::ALL.to_vec()),
+            selected_unit: ChartUnit::default(),
+            range_state: text_input::State::new(),
+            range: String::from("0"),
+            output: String::new(),
+        }
+    }
+
+    fn title(&self) -> String {
+        String::from("Modulation measurer")
+    }
+
+    fn update(&mut self, message: Message) {
+        match message {
+            Message::UnitSelected(unit) => {
+                self.selected_unit = unit;
+            }
+            Message::RangeChanged(value) => {
+                self.range = value;
+            }
+        }
+        self.update_output();
+    }
+
+    fn view(&self) -> Element<Message> {
+        column![
+            combo_box(&mut self.unit_state, &ChartUnit::ALL[..], Some(self.selected_unit), Message::UnitSelected),
+            text_input("Range", &self.range, Message::RangeChanged),
+            text(&self.output)
+        ]
+        .into()
+    }
+}
+
+impl TestApp {
+    fn update_output(&mut self) {
+        if let Ok(value) = self.range.trim().parse::<f64>() {
+            self.output = signal_frequency(value, self.selected_unit);
+        } else {
+            self.output.clear();
+        }
+    }
+}
 
 fn signal_frequency(range: f64, unit: ChartUnit) -> String {
-    let period:f64 = match unit {
+    let period = match unit {
         ChartUnit::Ns => range * 1e-9,
         ChartUnit::Us => range * 1e-6,
         ChartUnit::Ms => range * 1e-3,
     };
 
-    let period = 1.0 / period;
-
-    let log10 = period.log10();
-    let exp3 = (log10 / 3.0f64).floor() * 3.0f64; 
-    let prefix = match exp3 {
-            0.0 => "Hz",
-            3.0 => "kHz",
-            6.0 => "MHz",
-            9.0 => "THz",
-            _ => "Fail",
+    let freq = 1.0 / period;
+    let log10 = freq.log10();
+    let exp3 = (log10 / 3.0).floor() * 3.0;
+    let prefix = match exp3 as i32 {
+        0 => "Hz",
+        3 => "kHz",
+        6 => "MHz",
+        9 => "THz",
+        _ => "Hz",
     };
     let factor = 10f64.powf(exp3);
-    let value = period as f64 / factor as f64;
-    // println!("log10: {} \n exp3: {} \n prefix: {} \n factor: {} \n value: {}", log10, exp3, prefix, factor, value);
-    format!("{value:.3} {prefix}")
+    let value = freq / factor;
+    format!("{:.3} {}", value, prefix)
 }
+
